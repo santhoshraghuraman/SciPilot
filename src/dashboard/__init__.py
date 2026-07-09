@@ -1,0 +1,1 @@
+"""SciPilot dashboard package."""

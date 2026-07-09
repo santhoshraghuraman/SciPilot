@@ -1,0 +1,39 @@
+# ── Credentials & Secrets ─────────────────────────────────────────────────────
+.env
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual Environments ───────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── Testing & Coverage ─────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+
+# ── FAISS Index (generated data, not source code) ─────────────────────────────
+data/faiss_index.*
+data/cache/
+
+# ── Uploaded Papers & Generated Reports ───────────────────────────────────────
+research_papers/
+reports/
+
+# ── IDE & OS Files ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
