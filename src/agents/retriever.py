@@ -38,7 +38,7 @@ from typing import Dict, List, Optional, Set, Tuple
 import numpy as np
 
 from src.rag.chunk import TextChunk
-from src.rag.embed import EXPECTED_DIMENSIONS, embed_query
+from src.rag.embed import EXPECTED_DIMENSIONS, embed_query, is_local_mode
 from src.rag.vector_store import VectorStore
 from src.utils.config import settings
 from src.utils.logger import get_logger
@@ -349,9 +349,19 @@ class RetrieverAgent:
             ]
 
         # ── Step 4: score threshold ────────────────────────────────────────
-        raw_results = [
-            (c, s) for c, s in raw_results if s >= self._min_score
+        effective_min = self._min_score
+        if is_local_mode() and self._min_score == DEFAULT_MIN_SCORE:
+            effective_min = 0.05
+
+        filtered_results = [
+            (c, s) for c, s in raw_results if s >= effective_min
         ]
+        # In local mode, if sparse word hashing produced slightly lower scores,
+        # fall back to the top available candidates rather than dropping everything.
+        if not filtered_results and is_local_mode() and raw_results:
+            filtered_results = raw_results[:k]
+
+        raw_results = filtered_results
 
         total_candidates = len(raw_results)
         logger.debug(

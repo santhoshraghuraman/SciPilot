@@ -183,9 +183,25 @@ def _cos_available() -> bool:
     Return True when IBM COS credentials are configured.
 
     Does NOT make a network call — only checks that the required
-    settings are non-empty.
+    settings are non-empty and not placeholder values.
     """
-    return bool(settings.ibm_cos_api_key and settings.ibm_cos_instance_crn)
+    key = (getattr(settings, "ibm_cos_api_key", None) or "").strip()
+    crn = (getattr(settings, "ibm_cos_instance_crn", None) or "").strip()
+    if not (key and crn):
+        return False
+
+    _placeholders = {
+        "not-set", "test", "placeholder",
+        "your-ibm-cloud-api-key-here", "your_ibm_cloud_api_key_here",
+        "your-cos-instance-crn-here", "your_cos_instance_crn_here",
+    }
+    kl = key.lower()
+    cl = crn.lower()
+    if kl in _placeholders or cl in _placeholders:
+        return False
+    if kl.startswith("your_") or kl.startswith("your-") or cl.startswith("your_") or cl.startswith("your-"):
+        return False
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +373,13 @@ class MemoryAgent:
         """
         json_str = record.to_json()
         if self._use_cos:
-            _cos_put(record.session_id, json_str)
+            try:
+                _cos_put(record.session_id, json_str)
+            except Exception as exc:
+                logger.warning(
+                    "IBM COS put failed (%s); falling back to local JSON.", exc
+                )
+                _local_put(record.session_id, json_str)
         else:
             _local_put(record.session_id, json_str)
         logger.info(
@@ -381,7 +403,10 @@ class MemoryAgent:
             KeyError: If the session does not exist.
         """
         if self._use_cos:
-            json_str = _cos_get(session_id)
+            try:
+                json_str = _cos_get(session_id)
+            except Exception:
+                json_str = _local_get(session_id)
         else:
             json_str = _local_get(session_id)
         return SessionRecord.from_json(json_str)
@@ -402,21 +427,36 @@ class MemoryAgent:
         Returns:
             List of ``SessionRecord`` objects.
         """
+        records: List[SessionRecord] = []
         if self._use_cos:
-            ids = _cos_list()
+            try:
+                ids = _cos_list()
+                for sid in ids:
+                    try:
+                        json_str = _cos_get(sid)
+                        records.append(SessionRecord.from_json(json_str))
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning("Could not load session '%s': %s", sid, exc)
+            except Exception as exc:
+                logger.warning(
+                    "Could not list IBM COS sessions (%s); loading from local storage.",
+                    exc,
+                )
+                ids = _local_list()
+                for sid in ids:
+                    try:
+                        json_str = _local_get(sid)
+                        records.append(SessionRecord.from_json(json_str))
+                    except Exception as inner_exc:
+                        logger.warning("Could not load local session '%s': %s", sid, inner_exc)
         else:
             ids = _local_list()
-
-        records: List[SessionRecord] = []
-        for sid in ids:
-            try:
-                if self._use_cos:
-                    json_str = _cos_get(sid)
-                else:
+            for sid in ids:
+                try:
                     json_str = _local_get(sid)
-                records.append(SessionRecord.from_json(json_str))
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Could not load session '%s': %s", sid, exc)
+                    records.append(SessionRecord.from_json(json_str))
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Could not load session '%s': %s", sid, exc)
 
         if sort_by_date:
             records.sort(key=lambda r: r.created_at, reverse=True)

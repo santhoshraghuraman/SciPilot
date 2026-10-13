@@ -1,8 +1,14 @@
 """
-SciPilot — IBM watsonx.ai Embedding Wrapper  (src/rag/embed.py)
+SciPilot — Embedding Wrapper  (src/rag/embed.py)
 ================================================================
-Converts ``TextChunk`` objects into dense float vectors using the
-IBM watsonx.ai Embeddings API (model: ibm/slate-125m-english-rtrvr).
+Converts ``TextChunk`` objects into dense float vectors.
+
+Supports two modes:
+  1. **IBM watsonx.ai mode** (default): Uses the IBM watsonx.ai Embeddings
+     API (model: ibm/slate-125m-english-rtrvr).
+  2. **Local Demo Mode**: Uses sklearn HashingVectorizer to produce 384-dim
+     vectors locally without any API credentials. Clearly labelled as an
+     approximation — NOT a semantic embedding model.
 
 Design goals:
   - Batched requests: the API limits the number of texts per call; we
@@ -13,12 +19,14 @@ Design goals:
     detect it immediately rather than silently corrupting the FAISS index.
   - Pure function surface: ``embed_chunks`` and ``embed_texts`` are stateless
     — no side-effects beyond the API call — making them easy to mock in tests.
+  - Consistent dimensions: both IBM and local modes produce 384-dim vectors.
 
 IBM watsonx.ai SDK reference:
   https://ibm.github.io/watson-machine-learning-py-client/
 
 Dependencies:
-  - ibm-watsonx-ai  (``pip install ibm-watsonx-ai``)
+  - ibm-watsonx-ai  (``pip install ibm-watsonx-ai``) — for IBM mode
+  - scikit-learn     (``pip install scikit-learn``)    — for local demo mode
   - tenacity        (``pip install tenacity``)
   - src.rag.chunk   (TextChunk)
   - src.utils.config (settings)
@@ -31,6 +39,7 @@ from __future__ import annotations
 import os
 from typing import List, Optional
 
+import numpy as np
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -51,15 +60,87 @@ logger = get_logger(__name__)
 
 EMBED_BATCH_SIZE: int = 25        # texts per API call (conservative limit)
 MAX_RETRIES: int = 4              # total attempts = 1 original + 3 retries
-EXPECTED_DIMENSIONS: int = 0     # auto-detected on first embed call (0 = unknown)
+EXPECTED_DIMENSIONS: int = 384     # ibm/slate-125m-english-rtrvr default dimension
 
 
 # ---------------------------------------------------------------------------
-# Lazy client initialisation
+# Local Demo Mode flag
+# ---------------------------------------------------------------------------
+
+_LOCAL_MODE: bool = False   # When True, use local HashingVectorizer instead of IBM API
+
+
+def set_local_mode(enabled: bool = True) -> None:
+    """Enable or disable Local Demo Mode for embeddings."""
+    global _LOCAL_MODE
+    _LOCAL_MODE = enabled
+    if enabled:
+        logger.info("Embedding switched to LOCAL DEMO MODE (HashingVectorizer, 384-dim).")
+    else:
+        logger.info("Embedding switched to IBM watsonx.ai mode.")
+
+
+def is_local_mode() -> bool:
+    """Return whether Local Demo Mode is active."""
+    return _LOCAL_MODE
+
+
+# ---------------------------------------------------------------------------
+# Local embedding via sklearn HashingVectorizer
+# ---------------------------------------------------------------------------
+
+_local_vectorizer = None
+
+
+def _get_local_vectorizer():
+    """
+    Return a cached ``HashingVectorizer`` that produces 384-dim dense vectors.
+
+    NOTE: This is a bag-of-words hashing approach — NOT a true semantic
+    embedding model. It is used **only** for local demonstration when IBM
+    watsonx.ai credentials are unavailable. Results are approximate.
+    """
+    global _local_vectorizer
+    if _local_vectorizer is not None:
+        return _local_vectorizer
+
+    from sklearn.feature_extraction.text import HashingVectorizer
+    _local_vectorizer = HashingVectorizer(
+        n_features=EXPECTED_DIMENSIONS,
+        alternate_sign=False,
+        norm="l2",
+    )
+    logger.info(
+        "Local HashingVectorizer initialised (dim=%d). "
+        "This is NOT a semantic model — for demonstration only.",
+        EXPECTED_DIMENSIONS,
+    )
+    return _local_vectorizer
+
+
+def _embed_local(texts: List[str]) -> List[List[float]]:
+    """
+    Embed texts locally using HashingVectorizer (demo mode).
+
+    Returns 384-dim L2-normalised vectors consistent between indexing and
+    query time.
+    """
+    vectorizer = _get_local_vectorizer()
+    sparse_matrix = vectorizer.transform(texts)
+    dense = sparse_matrix.toarray().astype(np.float32)
+    # L2 normalise for cosine similarity in FAISS IndexFlatIP
+    norms = np.linalg.norm(dense, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0  # avoid division by zero
+    dense = dense / norms
+    return dense.tolist()
+
+
+# ---------------------------------------------------------------------------
+# Lazy IBM client initialisation
 # ---------------------------------------------------------------------------
 
 _client = None  # module-level cache; initialised on first use
-_detected_dim: int = 0  # auto-detected embedding dimension
+_detected_dim: int = 384  # embedding dimension (384 for slate-125m)
 
 
 def _get_client():
@@ -120,8 +201,8 @@ def reset_client() -> None:
     """
     global _client, _detected_dim, EXPECTED_DIMENSIONS
     _client = None
-    _detected_dim = 0
-    EXPECTED_DIMENSIONS = 0
+    _detected_dim = 384
+    EXPECTED_DIMENSIONS = 384
 
 
 # ---------------------------------------------------------------------------
@@ -161,19 +242,13 @@ def _embed_batch(texts: List[str]) -> List[List[float]]:
     # Auto-detect dimension on first call, then validate consistency
     if vectors:
         actual_dim = len(vectors[0])
-        if _detected_dim == 0:
-            _detected_dim = actual_dim
-            EXPECTED_DIMENSIONS = actual_dim
-            logger.info(
-                "Auto-detected embedding dimension: %d (model=%s)",
-                actual_dim,
-                settings.granite_embed_model,
-            )
-        elif actual_dim != _detected_dim:
+        if _detected_dim != 0 and actual_dim != _detected_dim:
             raise RuntimeError(
-                f"Embedding dimension changed mid-session: expected {_detected_dim}, "
-                f"got {actual_dim}. Restart the app if you changed GRANITE_EMBED_MODEL."
+                f"Unexpected embedding dimension: expected {_detected_dim}, "
+                f"got {actual_dim}."
             )
+        _detected_dim = actual_dim
+        EXPECTED_DIMENSIONS = actual_dim
 
     return vectors
 
@@ -181,6 +256,8 @@ def _embed_batch(texts: List[str]) -> List[List[float]]:
 def embed_texts(texts: List[str]) -> List[List[float]]:
     """
     Embed an arbitrary list of plain strings, handling batching internally.
+
+    In Local Demo Mode, uses HashingVectorizer instead of IBM API.
 
     Args:
         texts: Any number of strings to embed.
@@ -194,6 +271,20 @@ def embed_texts(texts: List[str]) -> List[List[float]]:
     if not texts:
         raise ValueError("embed_texts received an empty list.")
 
+    # ── Local Demo Mode: bypass IBM API entirely ─────────────────────────
+    if _LOCAL_MODE:
+        logger.info(
+            "[LOCAL DEMO] Embedding %d text(s) with HashingVectorizer …",
+            len(texts),
+        )
+        vectors = _embed_local(texts)
+        logger.info(
+            "[LOCAL DEMO] Embedding complete: %d vector(s), dim=%d.",
+            len(vectors), len(vectors[0]) if vectors else 0,
+        )
+        return vectors
+
+    # ── IBM watsonx.ai Mode ──────────────────────────────────────────────
     all_vectors: List[List[float]] = []
     batches = list(chunk_list(texts, EMBED_BATCH_SIZE))
 
