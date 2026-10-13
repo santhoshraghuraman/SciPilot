@@ -47,7 +47,7 @@ import streamlit as st
 from src.agents.memory import MemoryAgent, SessionRecord
 from src.orchestrator import Orchestrator, ResearchRequest, ResearchResponse
 from src.rag.chunk import chunk_documents
-from src.rag.embed import embed_chunks
+from src.rag.embed import embed_chunks, set_local_mode, is_local_mode
 from src.rag.ingest import load_pdf_from_bytes, save_uploaded_pdf
 from src.rag.vector_store import VectorStore
 from src.utils.config import settings
@@ -201,15 +201,64 @@ def _render_sidebar() -> dict:
     api_key = os.getenv("WATSONX_API_KEY", "")
     project_id = os.getenv("WATSONX_PROJECT_ID", "")
 
-    if api_key and api_key != "not-set" and project_id and project_id != "not-set":
+    # Detect common placeholder patterns
+    _placeholder_patterns = {
+        "", "not-set", "your-ibm-cloud-api-key-here",
+        "your-watsonx-project-id-here", "test", "placeholder",
+        "your_ibm_cloud_api_key_here", "your_ibm_cloud_api_key",
+        "your_watsonx_project_id_here", "your_watsonx_project_id",
+    }
+    api_key_valid = (
+        api_key
+        and api_key.strip().lower() not in _placeholder_patterns
+        and not api_key.strip().lower().startswith("your_")
+        and not api_key.strip().lower().startswith("your-")
+    )
+    project_id_valid = (
+        project_id
+        and project_id.strip().lower() not in _placeholder_patterns
+        and not project_id.strip().lower().startswith("your_")
+        and not project_id.strip().lower().startswith("your-")
+    )
+
+    if api_key_valid and project_id_valid:
         st.sidebar.success("✅ watsonx.ai credentials loaded")
         st.session_state.api_key_ok = True
     else:
         st.sidebar.warning(
-            "⚠️ IBM credentials not set.\n\n"
+            "⚠️ IBM credentials not set or contain placeholders.\n\n"
             "Copy `.env.example` → `.env` and fill in your credentials."
         )
         st.session_state.api_key_ok = False
+
+    st.sidebar.markdown("---")
+
+    # ── Local Demo Mode toggle ────────────────────────────────────────
+    st.sidebar.subheader("🧪 Local Demo Mode")
+    if "local_mode_initialized" not in st.session_state:
+        st.session_state.local_mode_initialized = True
+        if not (api_key_valid and project_id_valid):
+            set_local_mode(True)
+
+    local_mode = st.sidebar.toggle(
+        "Enable Local Demo Mode",
+        value=is_local_mode(),
+        help=(
+            "When enabled, SciPilot uses local HashingVectorizer embeddings "
+            "and extractive answers instead of IBM watsonx.ai APIs. "
+            "This allows full pipeline demonstration without API credentials. "
+            "Results are approximate — NOT IBM Granite output."
+        ),
+    )
+    set_local_mode(local_mode)
+
+    if local_mode:
+        st.sidebar.info(
+            "🧪 **Local Demo Mode active**\n\n"
+            "• Embeddings: sklearn HashingVectorizer (384-dim)\n"
+            "• Answers: Extractive (passage concatenation)\n"
+            "• NOT IBM Slate / Granite output"
+        )
 
     st.sidebar.markdown("---")
 
@@ -326,11 +375,12 @@ def _ingest_files(uploaded_files) -> None:
 
     progress.progress(55, text=f"🧠 Embedding {len(all_chunks)} chunk(s) …")
 
-    # Check credentials before calling IBM API
-    if not st.session_state.api_key_ok:
+    # Check credentials before calling IBM API (skip check in local mode)
+    if not st.session_state.api_key_ok and not is_local_mode():
         st.error(
             "❌ IBM watsonx.ai credentials not configured. "
-            "Please set WATSONX_API_KEY and WATSONX_PROJECT_ID in .env"
+            "Please set WATSONX_API_KEY and WATSONX_PROJECT_ID in .env, "
+            "or enable **Local Demo Mode** in the sidebar."
         )
         progress.empty()
         return
@@ -395,11 +445,12 @@ def _render_research_tab(cfg: dict) -> None:
         with st.chat_message("user"):
             st.markdown(question)
 
-        # Guard: check credentials
-        if not st.session_state.api_key_ok:
+        # Guard: check credentials (allow local mode)
+        if not st.session_state.api_key_ok and not is_local_mode():
             err = (
                 "⚠️ IBM watsonx.ai credentials not configured. "
-                "Please copy `.env.example` → `.env` and fill in your API key."
+                "Please copy `.env.example` → `.env` and fill in your API key, "
+                "or enable **Local Demo Mode** in the sidebar."
             )
             st.session_state.chat_history.append(
                 {"role": "assistant", "content": err, "data": None}
@@ -752,11 +803,16 @@ def main() -> None:
 
     # Footer
     st.markdown("---")
+    mode_label = (
+        "🧪 LOCAL DEMO MODE" if is_local_mode()
+        else "IBM watsonx.ai"
+    )
     st.markdown(
-        "<div style='text-align:center;color:#57606a;font-size:0.8rem;'>"
-        "SciPilot v1.0.0 · IBM SkillsBuild × AICTE 2026 · "
-        "Built with IBM watsonx.ai, Llama 3.3 70B, FAISS, Streamlit"
-        "</div>",
+        f"<div style='text-align:center;color:#57606a;font-size:0.8rem;'>"
+        f"SciPilot v1.0.0 · IBM SkillsBuild × AICTE 2026 · "
+        f"Mode: {mode_label} · "
+        f"Built with IBM watsonx.ai, Llama 3.3 70B, FAISS, Streamlit"
+        f"</div>",
         unsafe_allow_html=True,
     )
 

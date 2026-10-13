@@ -33,6 +33,7 @@ numpy>=1.26.0
 pandas>=2.2.0
 python-dotenv>=1.0.1
 pydantic>=2.7.0
+scikit-learn>=1.4.0       # HashingVectorizer for Local Demo Mode fallback
 tenacity>=8.3.0          # Retry logic for API calls
 tiktoken>=0.7.0          # Token counting
 

@@ -367,6 +367,10 @@ class SynthesisAgent:
         """
         Generate a grounded answer for *question* using context from *retrieval*.
 
+        In Local Demo Mode (when IBM API is unavailable), produces an extractive
+        answer from context chunks. This is clearly labelled as a local
+        approximation, NOT IBM Granite output.
+
         Args:
             question:       Research question string.
             retrieval:      ``RetrievalResult`` from the Retriever Agent.
@@ -416,6 +420,13 @@ class SynthesisAgent:
                 output_tokens = response["results"][0].get("generated_token_count", 0)
             except Exception as exc:
                 logger.error("IBM Granite API call failed: %s", exc)
+                # ── Local Demo Mode fallback ──────────────────────────────
+                from src.rag.embed import is_local_mode
+                if is_local_mode():
+                    logger.info(
+                        "[LOCAL DEMO] Falling back to extractive synthesis."
+                    )
+                    return self._local_synthesise(question, retrieval, prompt)
                 raise
 
         latency = time.perf_counter() - t0
@@ -443,6 +454,83 @@ class SynthesisAgent:
             latency_s=latency,
         )
 
+    # ------------------------------------------------------------------
+    # Local Demo Mode: extractive synthesis
+    # ------------------------------------------------------------------
+
+    def _local_synthesise(
+        self,
+        question: str,
+        retrieval: RetrievalResult,
+        prompt: str,
+    ) -> SynthesisResult:
+        """
+        Produce an extractive answer from retrieved context chunks (local only).
+
+        This is NOT IBM Granite output — it concatenates the most relevant
+        passages with inline citations. Used only when IBM credentials are
+        unavailable and Local Demo Mode is active.
+        """
+        t0 = time.perf_counter()
+
+        chunks = retrieval.chunks[:5]  # use top 5 passages
+        if not chunks:
+            return SynthesisResult(
+                answer="No relevant passages found in the uploaded documents.",
+                cited_indices=[],
+                question=question,
+                context_chunks=[],
+                prompt=prompt,
+                model_id="local-demo-extractive",
+            )
+
+        # Build extractive answer from top passages
+        answer_parts = []
+        answer_parts.append(
+            f"**[Local Demo Mode — Extractive Answer]**\n\n"
+            f"Based on the uploaded documents, the following passages are "
+            f"most relevant to your question:\n"
+        )
+
+        cited_indices = []
+        for i, chunk in enumerate(chunks, start=1):
+            # Take first 3 sentences or 200 chars of each chunk
+            text = chunk.text.strip()
+            sentences = re.split(r'(?<=[.!?])\s+', text)
+            excerpt = ' '.join(sentences[:3])
+            if len(excerpt) > 300:
+                excerpt = excerpt[:300] + "…"
+
+            answer_parts.append(f"\n**[{i}]** {excerpt}")
+            cited_indices.append(i)
+
+        answer_parts.append(
+            f"\n\n---\n"
+            f"*⚠️ This is a local extractive summary, not IBM Granite output. "
+            f"With valid IBM watsonx.ai credentials, SciPilot uses Granite LLM "
+            f"to produce a fully synthesised, grounded answer.*"
+        )
+
+        answer = "\n".join(answer_parts)
+        latency = time.perf_counter() - t0
+
+        logger.info(
+            "[LOCAL DEMO] Extractive synthesis — %d passages, %.2fs",
+            len(chunks), latency,
+        )
+
+        return SynthesisResult(
+            answer=answer,
+            cited_indices=cited_indices,
+            question=question,
+            context_chunks=chunks,
+            prompt=prompt,
+            model_id="local-demo-extractive",
+            input_tokens=0,
+            output_tokens=len(answer.split()),
+            latency_s=latency,
+        )
+
     def synthesise_multi(
         self,
         questions: List[str],
@@ -464,3 +552,4 @@ class SynthesisAgent:
             logger.info("Synthesising answer %d/%d: %s", i, len(questions), q[:60])
             results.append(self.synthesise(q, retrieval))
         return results
+

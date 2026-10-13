@@ -48,8 +48,8 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
     # ── IBM watsonx.ai ────────────────────────────────────────────────────────
-    watsonx_api_key: str = Field(alias="WATSONX_API_KEY")
-    watsonx_project_id: str = Field(alias="WATSONX_PROJECT_ID")
+    watsonx_api_key: str = Field(default="not-set", alias="WATSONX_API_KEY")
+    watsonx_project_id: str = Field(default="not-set", alias="WATSONX_PROJECT_ID")
     watsonx_url: str = Field(
         default="https://us-south.ml.cloud.ibm.com",
         alias="WATSONX_URL",
