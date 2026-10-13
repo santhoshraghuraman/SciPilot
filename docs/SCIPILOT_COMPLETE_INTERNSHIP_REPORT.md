@@ -94,6 +94,8 @@ Finally, I dedicate this work to my parents, family members, and peers whose enc
 
 ## TABLE OF CONTENTS
 
+*Note: Page numbers and section references are generated dynamically during final PDF compilation.*
+
 - [Declaration](#declaration)
 - [Acknowledgement](#acknowledgement)
 - [List of Figures](#list-of-figures)
@@ -121,6 +123,7 @@ Finally, I dedicate this work to my parents, family members, and peers whose enc
     - [4.3.1 Functional Requirements](#431-functional-requirements)
     - [4.3.2 Non-Functional Requirements](#432-non-functional-requirements)
     - [4.3.3 User & Interface Requirements](#433-user--interface-requirements)
+    - [4.3.4 Requirements Traceability Matrix](#434-requirements-traceability-matrix)
   - [4.4 System Assumptions, Dependencies and Constraints](#44-system-assumptions-dependencies-and-constraints)
   - [4.5 System Use Cases and Workflows](#45-system-use-cases-and-workflows)
 - [Chapter 5 — System Architecture and Design](#chapter-5--system-architecture-and-design)
@@ -197,27 +200,29 @@ Finally, I dedicate this work to my parents, family members, and peers whose enc
 
 ## LIST OF FIGURES
 
-*Note: Page references are generated dynamically during final PDF compilation.*
+*Note: Page numbers and figure references are generated dynamically during final PDF compilation.*
 
 - **Figure 5.1:** High-Level Architectural Topology of the SciPilot Multi-Agent System
 - **Figure 5.2:** End-to-End Scientific Ingestion and Retrieval Pipeline Flowchart
 - **Figure 5.3:** Sequential Agent Interaction and Hand-off Message Trace
 - **Figure 5.4:** Structural RAG Decomposition, Sliding Window, and Vector Ingestion
 - **Figure 5.5:** Execution Branching: Live IBM watsonx.ai Mode vs. Local Demo Mode
-- **Figure 7.1:** `<!-- IMAGE REQUIRED: images/figures/fig_01_scipilot_sidebar.png -->` SciPilot Reactive Sidebar Configuration and Credential State Indicator
-- **Figure 7.2:** `<!-- IMAGE REQUIRED: images/figures/fig_02_upload_ingest_tab.png -->` Multi-Document PDF Upload and Progress Tracking Interface
-- **Figure 7.3:** `<!-- IMAGE REQUIRED: images/figures/fig_03_research_chat_interface.png -->` Research Assistant Chat Interface Showing Structured Answer Card
-- **Figure 7.4:** `<!-- IMAGE REQUIRED: images/figures/fig_04_verification_metrics_card.png -->` Deterministic Verification Dashboard with Category Badges and Sub-Scores
-- **Figure 7.5:** `<!-- IMAGE REQUIRED: images/figures/fig_05_report_download_preview.png -->` Report Generation Tab Showing Markdown and PDF Export Actions
-- **Figure 7.6:** `<!-- IMAGE REQUIRED: images/figures/fig_06_session_history_tab.png -->` Persistent Research Sessions View Showing Historical Query Logs
-- **Figure 9.1:** `<!-- IMAGE REQUIRED: images/figures/fig_07_pytest_terminal_execution.png -->` Pytest 378/378 Test Suite Clean Execution in PowerShell Terminal
-- **Figure 10.1:** `<!-- IMAGE REQUIRED: images/figures/fig_08_sample_pdf_report_render.png -->` Sample Exported A4 PDF Research Report Rendered with `fpdf2`
+- **Figure 7.1:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_01_scipilot_sidebar.png -->` SciPilot Reactive Sidebar Configuration and Credential State Indicator
+- **Figure 7.2:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_02_upload_ingest_tab.png -->` Multi-Document PDF Upload and Progress Tracking Interface
+- **Figure 7.3:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_03_research_chat_interface.png -->` Research Assistant Chat Interface Showing Structured Answer Card
+- **Figure 7.4:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_04_verification_metrics_card.png -->` Deterministic Verification Dashboard with Category Badges and Sub-Scores
+- **Figure 7.5:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_05_report_download_preview.png -->` Report Generation Tab Showing Markdown and PDF Export Actions
+- **Figure 7.6:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_06_session_history_tab.png -->` Persistent Research Sessions View Showing Historical Query Logs
+- **Figure 9.1:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_07_pytest_terminal_execution.png -->` Pytest 378/378 Test Suite Clean Execution in PowerShell Terminal
+- **Figure 10.1:** `<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_08_sample_pdf_report_render.png -->` Sample Exported A4 PDF Research Report Rendered with `fpdf2`
 
 ---
 
 <div style="page-break-after: always;"></div>
 
 ## LIST OF TABLES
+
+*Note: Page numbers and table references are generated dynamically during final PDF compilation.*
 
 - **Table 3.1:** Key Attributes of the Industrial Internship Programme
 - **Table 4.1:** Comparison of Literature Review Approaches
@@ -297,7 +302,7 @@ To overcome these challenges, this industrial internship project presents **SciP
 
 SciPilot features a dual-operational architecture. In **Live IBM watsonx.ai Mode**, it leverages **IBM Granite 13B Instruct** (`ibm/granite-13b-instruct-v2`) and **IBM Slate 125M Retriever** (`ibm/slate-125m-english-rtrvr`). In **Local Demo Mode**, it provides an offline fallback using an L2-normalized 384-dimensional `HashingVectorizer` and deterministic extractive synthesis, preserving exact architectural contracts and vector dimensions without external network access.
 
-The system is verified with **378 automated pytest unit and integration tests** achieving a 100% pass rate. Live end-to-end empirical testing on a 6-page research paper demonstrated successful chunking (60 chunks), 384-dimensional indexing, relevant retrieval, and an overall verification confidence score of **0.76 (🟢 HIGH)** with an **0.89 grounding ratio**. SciPilot provides an open, robust, and verifiable framework for academic literature analysis.
+The system is verified with **378 automated pytest unit and integration tests** achieving a 100% pass rate with mocked cloud services. End-to-end empirical verification conducted in offline **Local Demo Mode** on a 6-page research paper demonstrated successful chunking (60 chunks), 384-dimensional indexing, relevant retrieval, and an overall verification confidence score of **0.76 (🟢 HIGH)** with an **0.89 grounding ratio**. SciPilot provides an open, robust, and verifiable framework for academic literature analysis.
 
 ---
 
@@ -463,6 +468,31 @@ Conducting literature reviews across scientific disciplines has evolved through 
 - **UIR-01**: A responsive multi-tab Streamlit dashboard providing Upload, Research, Evaluation, Report, and History tabs.
 - **UIR-02**: Clear visual credential indicators identifying whether IBM watsonx.ai credentials are valid or placeholder values.
 - **UIR-03**: A prominent sidebar toggle allowing users to enable or disable Local Demo Mode at any time.
+
+#### 4.3.4 Requirements Traceability Matrix
+
+| Requirement ID | Requirement Description | Implementing Subsystem / Agent | Verification Method | Status |
+|---|---|---|---|:---:|
+| **FR-01** | Multi-page PDF parsing & sanitization | `src/rag/ingest.py` (`load_pdf_from_bytes`) | Pytest (`test_ingest.py`) | Verified |
+| **FR-02** | Recursive text chunking (512/64) | `src/rag/chunk.py` (`chunk_documents`) | Pytest (`test_chunk.py`) | Verified |
+| **FR-03** | 384-d dense vector embeddings | `src/rag/embed.py` (IBM Slate / Hashing) | Pytest (`test_embed.py`) | Verified |
+| **FR-04** | FAISS IndexFlatIP vector indexing | `src/rag/vector_store.py` (`VectorStore`) | Pytest (`test_vector_store.py`) | Verified |
+| **FR-05** | Question planning & decomposition | `src/agents/planner.py` (`PlannerAgent`) | Pytest (`test_planner.py`) | Verified |
+| **FR-06** | Semantic search & MMR diversification | `src/agents/retriever.py` (`RetrieverAgent`) | Pytest (`test_retriever.py`) | Verified |
+| **FR-07** | Grounded answer synthesis | `src/agents/synthesis.py` (`SynthesisAgent`) | Pytest (`test_synthesis.py`) | Verified |
+| **FR-08** | Deterministic 4-axis verification | `src/agents/verification.py` (`VerificationAgent`) | Pytest (`test_verification.py`) | Verified |
+| **FR-09** | Academic citation formatting (APA/IEEE) | `src/agents/citation.py` (`CitationAgent`) | Pytest (`test_citation.py`) | Verified |
+| **FR-10** | Dual-format export (Markdown & PDF) | `src/agents/report.py` (`ReportAgent`) | Pytest (`test_report.py`) | Verified |
+| **FR-11** | Hybrid session storage (Local / COS) | `src/agents/memory.py` (`MemoryAgent`) | Pytest (`test_memory.py`) | Verified |
+| **NFR-01** | Sub-50ms local vector retrieval | `src/rag/vector_store.py` (`search`) | Benchmark / Pytest | Verified |
+| **NFR-02** | Exponential back-off retry logic | `src/rag/embed.py`, `src/utils/helpers.py` | Pytest mock retry tests | Verified |
+| **NFR-03** | 384-dimensional vector invariance | `src/rag/embed.py` (`_detected_dim`) | Invariant assertions | Verified |
+| **NFR-04** | Credential isolation & safety | `src/utils/config.py`, `.gitignore` | Environment inspection | Verified |
+| **UIR-01** | 5-Tab reactive Streamlit interface | `src/dashboard/app.py` | Manual UI audit | Verified |
+| **UIR-02** | Real-time credential state indicator | `src/dashboard/app.py` (Sidebar) | Manual UI audit | Verified |
+| **UIR-03** | Offline Local Demo Mode toggle switch | `src/dashboard/app.py` (Sidebar) | Manual UI audit | Verified |
+
+*Table 4.2: Software Requirements Traceability Matrix*
 
 ### 4.4 System Assumptions, Dependencies and Constraints
 1. **Assumptions**: Uploaded PDFs contain digital text layers. Documents are written in English.
@@ -881,29 +911,55 @@ def load_pdf_from_bytes(pdf_bytes: bytes, filename: str) -> List[PageDocument]:
 
 ```python
 # Code excerpt from src/rag/chunk.py
-def chunk_documents(
+def _chunk_single_document(
     pages: List[PageDocument],
-    chunk_size: int = DEFAULT_CHUNK_SIZE,
-    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+    chunk_size: int,
+    chunk_overlap: int,
 ) -> List[TextChunk]:
-    chunks: List[TextChunk] = []
-    chunk_index = 0
-    for page in pages:
-        splits = _recursive_split(page.text, delimiters=_DELIMITERS, max_size=chunk_size)
-        windowed = _apply_sliding_window(splits, chunk_size, chunk_overlap)
-        for text, char_start, char_end in windowed:
-            chunks.append(TextChunk(
-                text=text,
-                chunk_index=chunk_index,
-                doc_hash=page.doc_hash,
-                source=page.source,
-                page_number=page.page_number,
+    full_text = "\n".join(p.text for p in pages)
+    offset_map = _build_page_offset_map(pages)
+    first = pages[0]
+    raw_chunks = _split_text_recursive(full_text, chunk_size, chunk_overlap)
+
+    text_chunks: List[TextChunk] = []
+    for idx, (chunk_text, char_start) in enumerate(raw_chunks):
+        if not chunk_text.strip():
+            continue
+        char_end = char_start + len(chunk_text)
+        page_num = _char_offset_to_page(char_start, offset_map)
+        text_chunks.append(
+            TextChunk(
+                text=chunk_text,
+                chunk_index=idx,
+                doc_hash=first.doc_hash,
+                doc_title=first.doc_title,
+                doc_authors=first.doc_authors,
+                doc_subject=first.doc_subject,
+                source=first.source,
+                page_number=page_num,
                 char_start=char_start,
                 char_end=char_end,
-            ))
-            chunk_index += 1
-    return chunks
+                metadata=first.metadata,
+            )
+        )
+    return text_chunks
 ```
+
+| Model Class | Attribute Name | Data Type | Constraint / Invariant | Purpose in Pipeline |
+|---|---|---|---|---|
+| `PageDocument` | `text` | `str` | Non-empty, sanitized text, null bytes removed | Page text extracted via PyMuPDF |
+| `PageDocument` | `page_number` | `int` | $1 \le \text{page\_number} \le \text{total\_pages}$ | Preserves physical page number |
+| `PageDocument` | `doc_hash` | `str` | 64-char lowercase hex string (SHA-256) | Uniquely identifies source document |
+| `PageDocument` | `source` | `str` | Sanitized basename (no path traversal `../`) | Human-readable document filename |
+| `TextChunk` | `text` | `str` | $1 \le \text{len} \le \text{chunk\_size}$ (512 chars) | Unit of vector indexing and retrieval |
+| `TextChunk` | `chunk_index` | `int` | Sequential non-negative index ($0, 1, 2, \dots$) | Preserves chunk order within document |
+| `TextChunk` | `char_start` | `int` | $0 \le \text{char\_start} < \text{char\_end}$ | Character start offset in document text |
+| `TextChunk` | `char_end` | `int` | $\text{char\_end} = \text{char\_start} + \text{len}(\text{text})$ | Character end offset in document text |
+| `TextChunk` | `page_number` | `int` | Matches originating `PageDocument` page | Pinpoints citation to physical page |
+| `TextChunk` | `doc_hash` | `str` | Strictly equal to parent `doc_hash` | Prevents cross-document chunk leakage |
+| `Vector` | `vector` | `np.ndarray` | Dimension $= 384$, $\|\mathbf{v}\|_2 = 1.0$ (Unit norm) | Guarantees exact cosine inner product |
+
+*Table 7.2: Data Invariants across Document and Chunk Models*
 
 ---
 
@@ -920,10 +976,13 @@ def chunk_documents(
 # Code excerpt from src/rag/embed.py
 def _embed_local(texts: List[str]) -> List[List[float]]:
     vectorizer = _get_local_vectorizer()
-    matrix = vectorizer.transform(texts)
-    # L2-normalized dense representation
-    dense_matrix = matrix.toarray().astype(np.float32)
-    return dense_matrix.tolist()
+    sparse_matrix = vectorizer.transform(texts)
+    dense = sparse_matrix.toarray().astype(np.float32)
+    # L2 normalise for cosine similarity in FAISS IndexFlatIP
+    norms = np.linalg.norm(dense, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0  # avoid division by zero
+    dense = dense / norms
+    return dense.tolist()
 ```
 
 ---
@@ -939,6 +998,18 @@ def _embed_local(texts: List[str]) -> List[List[float]]:
 - **Output**: Ranked tuples of `(TextChunk, score: float)`.
 
 ---
+
+| Agent Name | Source File | Core Class | Primary Input | Primary Output | Key Technology / Model |
+|---|---|---|---|---|---|
+| **Planner Agent** | `src/agents/planner.py` | `PlannerAgent` | Query string | `PlanResult` (sub-questions) | IBM Granite 13B / Regex Parser |
+| **Retriever Agent** | `src/agents/retriever.py` | `RetrieverAgent` | Sub-questions list | `RetrievalResult` (top chunks) | FAISS IndexFlatIP + MMR ($\lambda=0.70$) |
+| **Synthesis Agent** | `src/agents/synthesis.py` | `SynthesisAgent` | Query & context chunks | `SynthesisResult` (answer + refs) | IBM Granite 13B / Local Extractive |
+| **Verification Agent** | `src/agents/verification.py`| `VerificationAgent` | `SynthesisResult` | `VerificationResult` (score + verdict) | 4-Axis Algorithmic Metric Engine |
+| **Citation Agent** | `src/agents/citation.py` | `CitationAgent` | Cited chunks list | `CitationResult` (formatted refs) | APA 7th & IEEE Algorithmic Formatter |
+| **Report Agent** | `src/agents/report.py` | `ReportAgent` | Session data bundle | `.md` & `.pdf` file paths | `fpdf2` Vector PDF & Markdown Engine |
+| **Memory Agent** | `src/agents/memory.py` | `MemoryAgent` | `SessionRecord` DTO | Persisted session UUID | Local JSON / IBM Cloud Object Storage |
+
+*Table 7.1: Architectural Specification of SciPilot Agent Classes*
 
 ### 7.7 Query Decomposition & Planning Agent (`src/agents/planner.py`)
 - **Purpose**: Decomposes complex composite queries into 2 to 5 targeted sub-questions.
@@ -1009,14 +1080,20 @@ def _embed_local(texts: List[str]) -> List[List[float]]:
 ---
 
 ### 7.14 Streamlit Reactive Interface (`src/dashboard/app.py`)
-- **Purpose**: Provides the user presentation layer.
-- **Features**:
-  - Sidebar showing configuration sliders, credential indicators, and Local Demo Mode toggle.
-  - Tab 1: PDF upload and ingestion progress.
-  - Tab 2: Research chat interface with answer cards and expandable source tables.
-  - Tab 3: Real-time verification metrics and confidence indicators.
-  - Tab 4: In-browser report preview and one-click PDF/MD download buttons.
-  - Tab 5: Historical session browser.
+- **Purpose**: Provides the user presentation layer, offering an intuitive, reactive multi-tab research workspace.
+- **Components & Layout**:
+  - **Sidebar Configuration**: Hosts parameter sliders (Chunk Size, Overlap, Retrieval Top-K), credential status indicators, and the prominent **Enable Local Demo Mode** switch.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_01_scipilot_sidebar.png | Capture: Streamlit dashboard sidebar showing IBM credentials warning and Local Demo Mode toggle turned ON | Section 7.14 -->
+  - **Tab 1 — Upload Research Papers**: Multi-file uploader with real-time PDF ingestion, page parsing, and FAISS indexing progress feedback.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_02_upload_ingest_tab.png | Capture: Upload tab showing file dropzone, progress bar at 100%, and green success banner with chunk count | Section 7.14 -->
+  - **Tab 2 — Research Assistant**: Chat workspace rendering grounded answer cards, inline citation brackets (`[1]`, `[2]`), confidence bars, and collapsible source passages.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_03_research_chat_interface.png | Capture: Research Assistant chat tab displaying the answer card, confidence badge, and collapsible drawers | Section 7.14 -->
+  - **Tab 3 — Evaluation & Verification**: Dedicated dashboard displaying the 4 deterministic verification sub-metrics (Citation Coverage, Grounding Ratio, Answer Quality, Source Diversity) and the categorical verdict badge.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_04_verification_metrics_card.png | Capture: Evaluation & Verification tab showing the 4 sub-metrics: Citation Coverage, Grounding Ratio, Answer Quality, Source Diversity | Section 7.14 -->
+  - **Tab 4 — Export Report**: In-browser Markdown report preview and one-click download buttons for both `.md` and `.pdf` formats.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_05_report_download_preview.png | Capture: Export Report tab showing markdown preview and download buttons | Section 7.14 -->
+  - **Tab 5 — Historical Sessions**: Persistent chronological log of past queries, allowing users to inspect previous sessions, verdicts, and generated answers.
+    <!-- IMAGE REQUIRED: docs/report_assets/figures/fig_06_session_history_tab.png | Capture: Sessions tab displaying past saved research query sessions with timestamps, question cards, and verdict badges | Section 7.14 -->
 
 ---
 
@@ -1130,6 +1207,8 @@ SciPilot adheres to rigorous test-driven verification. Every agent, data model, 
 
 *Table 9.1: Test Suite Distribution across Project Subsystems*
 
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_07_pytest_terminal_execution.png | Capture: PowerShell terminal showing 378 passed in 10.01s with green progress indicators | Section 9.3 -->
+
 ---
 
 ### 9.4 Complete Traceability and Test Matrix Table
@@ -1171,6 +1250,8 @@ SciPilot adheres to rigorous test-driven verification. Every agent, data model, 
 ## CHAPTER 10 — RESULTS, DEMONSTRATION AND DISCUSSION
 
 ### 10.1 System Initialisation and Dashboard Launch
+To validate the application end-to-end under reproducible offline conditions, the empirical demonstration was conducted strictly in **Local Demo Mode** (using scikit-learn's 384-dimensional `HashingVectorizer` and deterministic extractive synthesis), with placeholder credentials configured in `.env`. This demonstrates that the complete multi-agent workflow operates reliably without external IBM Cloud network connectivity.
+
 The SciPilot Streamlit application was launched locally on port 8501:
 ```powershell
 python -m streamlit run src/dashboard/app.py
@@ -1183,13 +1264,13 @@ python -m streamlit run src/dashboard/app.py
   [INFO] VectorStore ready: 0 chunk(s) indexed.
   ```
 
-<!-- IMAGE REQUIRED: images/figures/fig_01_scipilot_sidebar.png | Capture: Streamlit dashboard sidebar showing IBM credentials warning and Local Demo Mode toggle turned ON | Insert here before Section 10.2 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_01_scipilot_sidebar.png | Capture: Streamlit dashboard sidebar showing IBM credentials warning and Local Demo Mode toggle turned ON | Insert here before Section 10.2 -->
 
 ### 10.2 Empirical Document Ingestion & Chunking Results
 A representative 6-page research paper was ingested through the dashboard:  
 *File*: `A_Comprehensive_Security_Framework_for_the_Model_Context_Protocol_MCP_in_Multi-Agent_AI_Systems.pdf` (Size: 1.38 MB, 6 Pages).
 
-<!-- IMAGE REQUIRED: images/figures/fig_02_upload_ingest_tab.png | Capture: Upload tab showing file dropzone, progress bar at 100%, and green success banner with chunk count | Insert here after Table 10.1 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_02_upload_ingest_tab.png | Capture: Upload tab showing file dropzone, progress bar at 100%, and green success banner with chunk count | Insert here after Table 10.1 -->
 
 | Processing Stage | Metric Observed | Execution Details |
 |---|---|---|
@@ -1205,7 +1286,7 @@ A representative 6-page research paper was ingested through the dashboard:
 The following research inquiry was submitted via the chat interface:
 > *"What are the key security concerns in MCP multi-agent systems?"*
 
-<!-- IMAGE REQUIRED: images/figures/fig_03_research_chat_interface.png | Capture: Research Assistant chat tab displaying the answer card, confidence badge, and collapsible drawers | Insert here before Table 10.2 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_03_research_chat_interface.png | Capture: Research Assistant chat tab displaying the answer card, confidence badge, and collapsible drawers | Insert here before Table 10.2 -->
 
 | Execution Stage | Subsystem Action | Observed Output |
 |---|---|---|
@@ -1219,7 +1300,7 @@ The following research inquiry was submitted via the chat interface:
 
 *Table 10.2: Empirical Multi-Agent Execution Metrics for Sample Query*
 
-<!-- IMAGE REQUIRED: images/figures/fig_04_verification_metrics_card.png | Capture: Evaluation & Verification tab showing the 4 sub-metrics: Citation Coverage, Grounding Ratio, Answer Quality, Source Diversity | Insert here before Section 10.4 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_04_verification_metrics_card.png | Capture: Evaluation & Verification tab showing the 4 sub-metrics: Citation Coverage, Grounding Ratio, Answer Quality, Source Diversity | Insert here before Section 10.4 -->
 
 ### 10.4 Quantitative Verification & Grounding Evaluation
 The deterministic Verification Agent evaluated the generated synthesis across its four sub-metrics:
@@ -1236,9 +1317,9 @@ The Report Agent compiled dual-format archival reports:
 1. **Markdown Report** (`scipilot_20261013_211125_What_are_the_key_security_concerns_in_MCP_multi-agent_system.md`): Structured document containing executive metadata, question, answer, sources table, and bibliography.
 2. **A4 PDF Report** (`scipilot_20261013_211125_What_are_the_key_security_concerns_in_MCP_multi-agent_system.pdf`): Two-page vector PDF built via `fpdf2` featuring custom headers, horizontal dividers, and a metadata table.
 
-<!-- IMAGE REQUIRED: images/figures/fig_05_report_download_preview.png | Capture: Export Report tab showing markdown preview and download buttons | Insert here after Section 10.5 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_05_report_download_preview.png | Capture: Export Report tab showing markdown preview and download buttons | Insert here after Section 10.5 -->
 
-<!-- IMAGE REQUIRED: images/figures/fig_08_sample_pdf_report_render.png | Capture: Rendered A4 PDF report opened in PDF viewer | Insert here before Section 10.6 -->
+<!-- IMAGE REQUIRED: docs/report_assets/figures/fig_08_sample_pdf_report_render.png | Capture: Rendered A4 PDF report opened in PDF viewer | Insert here before Section 10.6 -->
 
 ### 10.6 Discussion of System Capabilities and Deficits
 The empirical test confirms the validity of the architecture:
@@ -1452,14 +1533,14 @@ tests\test_verification.py ............................................. [ 97%]
 
 | Fig # | Target Screenshot Filename | Exact UI Location | Action / State to Capture |
 |---|---|---|---|
-| **7.1** | `images/figures/fig_01_scipilot_sidebar.png` | Sidebar | Toggle Local Demo Mode ON; display credentials warning and chunk count |
-| **7.2** | `images/figures/fig_02_upload_ingest_tab.png` | Tab 1 (Upload) | Ingest sample PDF; display progress bar at 100% and success banner |
-| **7.3** | `images/figures/fig_03_research_chat_interface.png` | Tab 2 (Research) | Submit query; display answer card with citations and confidence score |
-| **7.4** | `images/figures/fig_04_verification_metrics_card.png` | Tab 3 (Evaluation) | Display Grounding Ratio, Coverage, Quality, and HIGH verdict badge |
-| **7.5** | `images/figures/fig_05_report_download_preview.png` | Tab 4 (Reports) | Display Markdown report preview and Download PDF / MD buttons |
-| **7.6** | `images/figures/fig_06_session_history_tab.png` | Tab 5 (Sessions) | Display chronological session cards with timestamps and questions |
-| **9.1** | `images/figures/fig_07_pytest_terminal_execution.png` | Terminal | PowerShell terminal showing `378 passed in 10.01s` output |
-| **10.1**| `images/figures/fig_08_sample_pdf_report_render.png` | PDF Reader | Open exported PDF report displaying title, answer, table, references |
+| **7.1** | `docs/report_assets/figures/fig_01_scipilot_sidebar.png` | Sidebar | Toggle Local Demo Mode ON; display credentials warning and chunk count |
+| **7.2** | `docs/report_assets/figures/fig_02_upload_ingest_tab.png` | Tab 1 (Upload) | Ingest sample PDF; display progress bar at 100% and success banner |
+| **7.3** | `docs/report_assets/figures/fig_03_research_chat_interface.png` | Tab 2 (Research) | Submit query; display answer card with citations and confidence score |
+| **7.4** | `docs/report_assets/figures/fig_04_verification_metrics_card.png` | Tab 3 (Evaluation) | Display Grounding Ratio, Coverage, Quality, and HIGH verdict badge |
+| **7.5** | `docs/report_assets/figures/fig_05_report_download_preview.png` | Tab 4 (Reports) | Display Markdown report preview and Download PDF / MD buttons |
+| **7.6** | `docs/report_assets/figures/fig_06_session_history_tab.png` | Tab 5 (Sessions) | Display chronological session cards with timestamps and questions |
+| **9.1** | `docs/report_assets/figures/fig_07_pytest_terminal_execution.png` | Terminal | PowerShell terminal showing `378 passed in 10.01s` output |
+| **10.1**| `docs/report_assets/figures/fig_08_sample_pdf_report_render.png` | PDF Reader | Open exported PDF report displaying title, answer, table, references |
 
 ---
 
@@ -1522,7 +1603,7 @@ Data Representation Invariants Across Subsystems:
 
 - **GitHub Repository**: [https://github.com/santhoshraghuraman/SciPilot](https://github.com/santhoshraghuraman/SciPilot)
 - **Active Branch**: `main` (Synchronized with `origin/main`)
-- **Top Verified Commit**: `9cfc008`
+- **Top Verified Commit**: `d6d03b6` (Documentation merge)
 - **Host Institution**: Vellore Institute of Technology (VIT), Vellore — [https://vit.ac.in](https://vit.ac.in)
 - **Host Organization**: Edunet Foundation — [https://edunetfoundation.org](https://edunetfoundation.org)
 - **Internship Programme**: IBM SkillsBuild — [https://skillsbuild.org](https://skillsbuild.org)
