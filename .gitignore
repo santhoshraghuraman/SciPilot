@@ -26,6 +26,8 @@ htmlcov/
 
 # ── FAISS Index (generated data, not source code) ─────────────────────────────
 data/faiss_index.*
+data/*.index
+data/*.meta
 data/cache/
 
 # ── Uploaded Papers & Generated Reports ───────────────────────────────────────
